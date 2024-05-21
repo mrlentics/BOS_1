@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# Функции для обработки разных действий
+function show_users() {
+  local output="$1"
+  if [[ -z "$output" ]]; then
+    getent passwd | cut -d: -f1,6 | sort -t: -k1
+  else
+    getent passwd | cut -d: -f1,6 | sort -t: -k1 > "$output"
+  fi
+}
+
+function show_processes() {
+  local output="$1"
+  if [[ -z "$output" ]]; then
+    ps -eo pid,comm --sort pid
+  else
+    ps -eo pid,comm --sort pid > "$output"
+  fi
+}
+
+function show_help() {
+  cat << EOF
+Usage: $0 [OPTIONS]
+
+Options:
+  -u, --users       Show list of users and their home directories
+  -p, --processes    Show list of running processes
+  -h, --help        Show this help message
+  -l, --log PATH    Log output to file
+  -e, --errors PATH  Log errors to file
+EOF
+}
+
+# Обработка аргументов с помощью getopts
+while getopts ":uphl:e:" opt; do
+  case $opt in
+    u)
+      show_users "$log_file"
+      ;;
+    p)
+      show_processes "$log_file"
+      ;;
+    h)
+      show_help
+      exit 0
+      ;;
+    l)
+      log_file="$OPTARG"
+      if [[ ! -w "$log_file" ]]; then
+        echo "Error: Cannot write to log file: $log_file" >&2
+        exit 1
+      fi
+      ;;
+    e)
+      error_file="$OPTARG"
+      if [[ ! -w "$error_file" ]]; then
+        echo "Error: Cannot write to error file: $error_file" >&2
+        exit 1
+      fi
+      exec 2> "$error_file"
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Проверка, были ли указаны аргументы
+if [[ -z "$*" ]]; then
+  show_help
+  exit 1
+fi
